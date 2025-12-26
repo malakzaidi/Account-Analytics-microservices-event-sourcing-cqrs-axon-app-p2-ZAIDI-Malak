@@ -3,8 +3,10 @@ package org.axon.accountanalyticscqrsaxon.commands.aggregate;
 
 import lombok.extern.slf4j.Slf4j;
 import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreateAccountCommand;
+import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreditAccountCommand;
 import org.axon.accountanalyticscqrsaxon.commonapi.enums.AccountStatus;
 import org.axon.accountanalyticscqrsaxon.commonapi.events.AccountCreatedEvent;
+import org.axon.accountanalyticscqrsaxon.commonapi.events.AccountCreditedEvent;
 import org.axonframework.commandhandling.CommandHandler;
 import org.axonframework.eventsourcing.EventSourcingHandler;
 import org.axonframework.modelling.command.AggregateIdentifier;
@@ -43,4 +45,20 @@ public class AccountAggregate {
         this.currency = event.getCurrency();
         this.status = event.getStatus();
     }
+
+    public void handle(CreditAccountCommand command){
+        log.info("CreditAccountCommand received");
+        if(command.getAmount()<0) throw new RuntimeException("Amount negative exception");
+        AggregateLifecycle.apply(new AccountCreditedEvent(
+                command.getId(),
+                command.getAmount(),
+                command.getCurrency()
+        ));
+    }
+    @EventSourcingHandler
+    public void on(AccountCreditedEvent event){
+       this.balance += event.getAmount();
+
+    }
+
 }

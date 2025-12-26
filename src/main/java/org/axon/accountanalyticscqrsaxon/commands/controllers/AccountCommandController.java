@@ -2,7 +2,9 @@ package org.axon.accountanalyticscqrsaxon.commands.controllers;
 
 
 import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreateAccountCommand;
+import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreditAccountCommand;
 import org.axon.accountanalyticscqrsaxon.commonapi.dto.CreateAccountDTO;
+import org.axon.accountanalyticscqrsaxon.commonapi.dto.CreditAccountDTO;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,16 @@ public class AccountCommandController {
                 UUID.randomUUID().toString(),
                 request.initialBalance(),
                 request.currency()
+        ));
+        return result;
+    }
+    @PostMapping("/credit")
+    public CompletableFuture<String> creditAccount(@RequestBody CreditAccountDTO request){
+        CompletableFuture<String> result = commandGateway.send(new CreditAccountCommand(
+                request.getAccountId(),
+                request.getAmount(),
+                request.getCurrency()
+
         ));
         return result;
     }
