@@ -6,18 +6,24 @@ import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreditAccountCommand
 import org.axon.accountanalyticscqrsaxon.commonapi.dto.CreateAccountDTO;
 import org.axon.accountanalyticscqrsaxon.commonapi.dto.CreditAccountDTO;
 import org.axonframework.commandhandling.gateway.CommandGateway;
+import org.axonframework.eventsourcing.eventstore.EventStore;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/commands/account")
 public class AccountCommandController {
     private CommandGateway commandGateway;
-    public AccountCommandController(CommandGateway commandGateway) {
+    private EventStore eventStore;
+
+
+    public AccountCommandController(CommandGateway commandGateway, EventStore eventStore) {
         this.commandGateway = commandGateway;
+        this.eventStore = eventStore;
     }
     @PostMapping("/create")
     public CompletableFuture<String> createdAccount(@RequestBody CreateAccountDTO request){
@@ -44,4 +50,26 @@ public class AccountCommandController {
         return ResponseEntity.internalServerError().body(ex.getMessage());
     }
 
+    @GetMapping("/eventStore")
+    public Stream eventStore(@PathVariable String accountId){
+        return eventStore.readEvents(accountId).asStream();
+
+    }
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

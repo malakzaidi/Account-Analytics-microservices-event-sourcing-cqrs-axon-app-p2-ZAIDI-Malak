@@ -46,6 +46,7 @@ public class AccountAggregate {
         this.status = event.getStatus();
     }
 
+    @CommandHandler
     public void handle(CreditAccountCommand command){
         log.info("CreditAccountCommand received");
         if(command.getAmount()<0) throw new RuntimeException("Amount negative exception");
