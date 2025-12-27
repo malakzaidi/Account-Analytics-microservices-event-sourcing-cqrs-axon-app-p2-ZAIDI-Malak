@@ -1,0 +1,212 @@
+name: MLOps Edge Security Pipeline - Feature Branch
+
+on:
+  push:
+    branches:
+      - feature/add
+    paths:
+      - app/**
+      - models.dvc
+      - data.dvc
+      - scripts/**
+      - requirements.txt
+      - setup.py
+
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: Mode de test detaille
+        required: false
+        default: basic
+        type: choice
+        options:
+          - basic
+          - full
+          - benchmark-only
+
+env:
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || 'http://localhost:5000' }}
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  setup-and-validation:
+    name: Setup and Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      models_exist: ${{ steps.check-models.outputs.exist }}
+      models_count: ${{ steps.check-models.outputs.count }}
+      setup_success: ${{ steps.validate-setup.outputs.success }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install DVC and dependencies
+        run: |
+          pip install "dvc[gdrive]==3.41.0"
+          pip install numpy opencv-python tflite-runtime
+
+      - name: Configure DVC Service Account
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
+            echo "Missing GDRIVE_CREDENTIALS_JSON"
+            exit 1
+          fi
+
+          mkdir -p ~/.dvc
+          echo "$SERVICE_ACCOUNT_JSON" > ~/.dvc/gdrive_service_account.json
+
+          REMOTE_NAME=$(dvc remote list | head -n1 | awk '{print $1}')
+          dvc remote modify --local "$REMOTE_NAME" gdrive_use_service_account true
+          dvc remote modify --local "$REMOTE_NAME" gdrive_service_account_json_file_path ~/.dvc/gdrive_service_account.json
+          dvc remote modify --local "$REMOTE_NAME" gdrive_acknowledge_abuse true
+
+      - name: Pull models from DVC
+        run: |
+          if [ -f models.dvc ]; then
+            dvc pull models.dvc
+          fi
+
+      - name: Check models presence
+        id: check-models
+        run: |
+          if [ ! -d models ]; then
+            echo "exist=false" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          count=$(find models -name "*.tflite" | wc -l)
+          echo "count=$count" >> $GITHUB_OUTPUT
+
+          if [ "$count" -gt 0 ]; then
+            echo "exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "exist=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install package and validate
+        id: validate-setup
+        if: steps.check-models.outputs.exist == 'true'
+        run: |
+          pip install -e .
+          [ -f requirements.txt ] && pip install -r requirements.txt
+
+          python3 - << 'EOF'
+          import os
+          from app.inference import EdgeDetector
+
+          models = [f for f in os.listdir("models") if f.endswith(".tflite")]
+          if not models:
+              raise RuntimeError("No model found")
+
+          EdgeDetector(f"models/{models[0]}")
+          print("Model loaded successfully")
+          EOF
+
+          echo "success=true" >> $GITHUB_OUTPUT
+
+      - name: Basic inference tests
+        if: steps.check-models.outputs.exist == 'true' && steps.validate-setup.outputs.success == 'true'
+        run: |
+          python3 - << 'EOF'
+          import numpy as np
+          import os
+          from app.inference import EdgeDetector
+
+          for m in os.listdir("models"):
+              if m.endswith(".tflite"):
+                  detector = EdgeDetector(f"models/{m}")
+                  img = np.random.randint(0,255,(320,320,3),dtype=np.uint8)
+                  _,_,_,lat = detector.predict(img)
+                  print(f"{m}: {lat:.2f} ms")
+          EOF
+
+  performance-benchmark:
+    name: Performance Benchmark (x86)
+    needs: setup-and-validation
+    if: needs.setup-and-validation.outputs.models_exist == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install numpy pandas opencv-python tflite-runtime "dvc[gdrive]==3.41.0"
+
+      - name: Pull models
+        run: dvc pull models.dvc
+
+      - name: Run benchmark
+        id: run-benchmark
+        run: |
+          python3 scripts/benchmark.py
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_results.json
+
+  raspberry-pi-simulation:
+    name: Raspberry Pi 4 Simulation
+    needs: setup-and-validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: ARM64 Simulation
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace python:3.11-slim \
+            bash -c "
+              pip install numpy opencv-python tflite-runtime &&
+              python scripts/arm_test.py
+            "
+
+  final-report:
+    name: Final Report
+    needs:
+      - setup-and-validation
+      - performance-benchmark
+      - raspberry-pi-simulation
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate report
+        run: |
+          echo '# MLOps Pipeline Report' > final_report.md
+          echo 'Branch: ${{ github.ref_name }}' >> final_report.md
+          echo 'Commit: ${{ github.sha }}' >> final_report.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-final-report
+          path: final_report.md
