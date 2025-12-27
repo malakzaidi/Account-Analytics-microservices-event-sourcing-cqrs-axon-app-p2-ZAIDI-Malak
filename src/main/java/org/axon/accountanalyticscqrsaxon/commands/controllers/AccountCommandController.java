@@ -50,10 +50,9 @@ public class AccountCommandController {
         return ResponseEntity.internalServerError().body(ex.getMessage());
     }
 
-    @GetMapping("/eventStore")
+    @GetMapping("/eventStore/{accountId}")
     public Stream eventStore(@PathVariable String accountId){
         return eventStore.readEvents(accountId).asStream();
-
     }
 
 
