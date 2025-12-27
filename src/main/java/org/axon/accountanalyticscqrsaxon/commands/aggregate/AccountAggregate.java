@@ -4,9 +4,11 @@ package org.axon.accountanalyticscqrsaxon.commands.aggregate;
 import lombok.extern.slf4j.Slf4j;
 import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreateAccountCommand;
 import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreditAccountCommand;
+import org.axon.accountanalyticscqrsaxon.commonapi.commands.DebitAccountCommand;
 import org.axon.accountanalyticscqrsaxon.commonapi.enums.AccountStatus;
 import org.axon.accountanalyticscqrsaxon.commonapi.events.AccountCreatedEvent;
 import org.axon.accountanalyticscqrsaxon.commonapi.events.AccountCreditedEvent;
+import org.axon.accountanalyticscqrsaxon.commonapi.events.AccountDebitedEvent;
 import org.axonframework.commandhandling.CommandHandler;
 import org.axonframework.eventsourcing.EventSourcingHandler;
 import org.axonframework.modelling.command.AggregateIdentifier;
@@ -59,7 +61,21 @@ public class AccountAggregate {
     @EventSourcingHandler
     public void on(AccountCreditedEvent event){
        this.balance += event.getAmount();
-
     }
+    @CommandHandler
+    public void handle(DebitAccountCommand command){
+        log.info("DebitAccountCommand received");
+        if(command.getAmount()> this.balance) throw new RuntimeException("Balance unsufficient");
+        AggregateLifecycle.apply(new AccountDebitedEvent(
+                command.getId(),
+                command.getAmount(),
+                command.getCurrency()
+        ));
+    }
+    @EventSourcingHandler
+    public void on(AccountDebitedEvent event){
+        this.balance -= event.getAmount();
+    }
+
 
 }

@@ -3,8 +3,10 @@ package org.axon.accountanalyticscqrsaxon.commands.controllers;
 
 import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreateAccountCommand;
 import org.axon.accountanalyticscqrsaxon.commonapi.commands.CreditAccountCommand;
+import org.axon.accountanalyticscqrsaxon.commonapi.commands.DebitAccountCommand;
 import org.axon.accountanalyticscqrsaxon.commonapi.dto.CreateAccountDTO;
 import org.axon.accountanalyticscqrsaxon.commonapi.dto.CreditAccountDTO;
+import org.axon.accountanalyticscqrsaxon.commonapi.dto.DebitAccountDTO;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.eventsourcing.eventstore.EventStore;
 import org.springframework.http.ResponseEntity;
@@ -53,6 +55,17 @@ public class AccountCommandController {
     @GetMapping("/eventStore/{accountId}")
     public Stream eventStore(@PathVariable String accountId){
         return eventStore.readEvents(accountId).asStream();
+    }
+
+    @PostMapping("/debit")
+    public CompletableFuture<String> debitAccount(@RequestBody DebitAccountDTO request){
+        CompletableFuture<String> result = commandGateway.send(new DebitAccountCommand(
+                request.getAccountId(),
+                request.getAmount(),
+                request.getCurrency()
+
+        ));
+        return result;
     }
 
 
