@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: white;
+            padding: 24px 32px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .account-input {
+            padding: 10px 16px;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: monospace;
+            min-width: 300px;
+            flex: 1;
+        }
+        .watch-btn {
+            background: #1e90ff;
+            color: white;
+            border: none;
+            padding: 10px 28px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .watch-btn:hover {
+            background: #1873cc;
+        }
+        .watch-btn:active {
+            transform: scale(0.98);
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .status-active {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status-inactive {
+            background: #fafafa;
+            color: #757575;
+        }
+        .chart-section {
+            padding: 32px;
+        }
+        .legend-container {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #fafafa;
+            border-radius: 6px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .legend-color {
+            width: 24px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 450px;
+            background: white;
+        }
+        .loading {
+            text-align: center;
+            padding: 80px 20px;
+            color: #666;
+            font-size: 15px;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1e90ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <input
+                type="text"
+                id="accountInput"
+                class="account-input"
+                placeholder="Enter Account ID (e.g., CNW7ZGc-45db0-49a9-a9b1-242cb3fd)"
+                value="">
+        <button class="watch-btn" onclick="watchAccount()">Watch</button>
+        <span id="statusBadge" class="status-badge status-inactive">Not Connected</span>
+    </div>
+
+    <div id="loading" class="loading">
+        <div style="font-size: 18px; margin-bottom: 12px;">📊 Analytics Dashboard</div>
+        <div>Enter an Account ID above and click <strong>Watch</strong> to see live analytics</div>
+    </div>
+
+    <div id="chartSection" class="chart-section" style="display:none;">
+        <div class="legend-container">
+            <div class="legend-item">
+                <span class="legend-color" style="background: #1e90ff;"></span>
+                <span>Account Balance</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #ff69b4;"></span>
+                <span>Total Debit</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #ffa500;"></span>
+                <span>Total Credit</span>
+            </div>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="analyticsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    let eventSource = null;
+    let chart = null;
+    const chartData = { labels: [], balances: [], credits: [], debits: [] };
+
+    function initChart() {
+        const ctx = document.getElementById('analyticsChart').getContext('2d');
+        if (chart) chart.destroy();
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Account Balance',
+                        data: chartData.balances,
+                        borderColor: '#1e90ff',
+                        backgroundColor: 'rgba(30,144,255,0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Total Debit',
+                        data: chartData.debits,
+                        borderColor: '#ff69b4',
+                        backgroundColor: 'rgba(255,105,180,0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Total Credit',
+                        data: chartData.credits,
+                        backgroundColor: 'rgba(255,165,0,0.1)',
+                        borderColor: '#ffa500',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: { size: 13 },
+                        bodyFont: { size: 12 }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: true,
+                            color: '#f0f0f0'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            font: { size: 11 }
+                        }
+                    },
+                    y: {
+                        // This is the key change!
+                        suggestedMin: 1000,        // Forces chart to start near 1000 instead of 0
+                        // suggestedMax will be auto-calculated above the highest value
+                        grid: {
+                            color: '#f0f0f0'
+                        },
+                        ticks: {
+                            font: { size: 11 },
+                            callback: function(value) {
+                                return value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+
+    function addDataPoint(data) {
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        chartData.labels.push(time);
+        chartData.balances.push(data.balance || 0);
+        chartData.credits.push(data.totalCredit || 0);
+        chartData.debits.push(data.totalDebit || 0);
+
+        // Keep last 50 data points
+        if (chartData.labels.length > 50) {
+            chartData.labels.shift();
+            chartData.balances.shift();
+            chartData.credits.shift();
+            chartData.debits.shift();
+        }
+
+        // Optional: Dynamically adjust suggestedMax for better zoom when data grows
+        const allValues = [...chartData.balances, ...chartData.credits, ...chartData.debits];
+        const maxValue = Math.max(...allValues);
+        if (chart.options.scales.y.suggestedMax < maxValue * 1.05) {
+            chart.options.scales.y.suggestedMax = maxValue * 1.05;
+        }
+
+        chart.update('none');
+    }
+
+    function watchAccount() {
+        const accountId = document.getElementById('accountInput').value.trim();
+        if (!accountId) {
+            alert('Please enter an Account ID');
+            return;
+        }
+
+        if (eventSource) {
+            eventSource.close();
+        }
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('chartSection').style.display = 'block';
+
+        const statusBadge = document.getElementById('statusBadge');
+        statusBadge.textContent = 'Connecting...';
+        statusBadge.className = 'status-badge status-inactive';
+
+        chartData.labels = [];
+        chartData.balances = [];
+        chartData.credits = [];
+        chartData.debits = [];
+        initChart();
+
+        eventSource = new EventSource(`/query/accountAnalytics/${accountId}/watch`);
+
+        eventSource.onopen = function() {
+            statusBadge.textContent = `Watching: ${accountId}`;
+            statusBadge.className = 'status-badge status-active';
+        };
+
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                addDataPoint(data);
+            } catch (e) {
+                console.error('Error parsing data:', e);
+            }
+        };
+
+        eventSource.onerror = function() {
+            statusBadge.textContent = 'Connection Lost';
+            statusBadge.className = 'status-badge status-inactive';
+            alert('Connection lost. Please try again.');
+            eventSource.close();
+        };
+    }
+
+    document.getElementById('accountInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            watchAccount();
+        }
+    });
+</script>
+</body>
+</html>
