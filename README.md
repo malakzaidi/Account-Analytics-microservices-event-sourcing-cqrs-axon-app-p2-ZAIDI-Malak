@@ -6,6 +6,11 @@ Ce projet est une application complète de gestion et d'analyse de comptes banca
 
 <img width="1906" height="1046" alt="image" src="https://github.com/user-attachments/assets/4207bd58-a8ec-481e-a039-3acf72a4c0d4" />
 
+## Architecture du Projet 
+
+<img width="1536" height="1024" alt="schéma" src="https://github.com/user-attachments/assets/f575c28e-5f22-4aec-acdd-af29265b8388" />
+
+
 Le système permet de créer des comptes bancaires, d'effectuer des opérations de crédit et de débit, de consulter l'historique complet des transactions, et de visualiser des analyses détaillées via un tableau de bord interactif.
 
 ### Test des endpoints : API Documentation
