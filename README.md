@@ -14,3 +14,14 @@ EventStore:
 <img width="1908" height="1045" alt="Screenshot 2025-12-27 010332" src="https://github.com/user-attachments/assets/8e91b97f-2471-43a9-95ae-3275533171e5" />
 <img width="1906" height="1046" alt="image" src="https://github.com/user-attachments/assets/4207bd58-a8ec-481e-a039-3acf72a4c0d4" />
 
+![Axon-events.png](screenshots/Axon-events.png)
+![account-analytics-endpoint-test.png](screenshots/account-analytics-endpoint-test.png)
+![event-details.png](screenshots/event-details.png)
+![services-in-axon.png](screenshots/services-in-axon.png)
+
+![test2.png](screenshots/test2.png)
+![test-watch-events.png](screenshots/test-watch-events.png)
+
+
+
+
