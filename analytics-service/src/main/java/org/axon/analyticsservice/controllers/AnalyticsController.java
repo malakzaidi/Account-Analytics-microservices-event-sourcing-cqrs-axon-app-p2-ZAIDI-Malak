@@ -1,0 +1,36 @@
+package org.axon.analyticsservice.controllers;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.axon.analyticsservice.entities.AccountAnalytics;
+import org.axon.analyticsservice.queries.GetAllAccountAnalytics;
+import org.axon.analyticsservice.queries.GetAllAccountAnalyticsByAccountId;
+import org.axonframework.messaging.responsetypes.ResponseTypes;
+import org.axonframework.queryhandling.QueryGateway;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+@RestController
+@Slf4j
+public class AnalyticsController {
+    private QueryGateway queryGateway;
+
+    public AnalyticsController(QueryGateway queryGateway) {
+        this.queryGateway = queryGateway;
+    }
+
+    @GetMapping("/query/accountAnalytics")
+    public CompletableFuture<List<AccountAnalytics>> accountAnalytics(){
+        return queryGateway.query(new GetAllAccountAnalytics(), ResponseTypes.multipleInstancesOf(AccountAnalytics.class));
+    }
+    @GetMapping("/query/accountAnalytics/{accountId}")
+    public CompletableFuture<AccountAnalytics> accountAnalytics(@PathVariable String accountId){
+        return queryGateway.query(new GetAllAccountAnalyticsByAccountId(accountId), ResponseTypes.instanceOf(AccountAnalytics.class));
+    }
+
+
+}
