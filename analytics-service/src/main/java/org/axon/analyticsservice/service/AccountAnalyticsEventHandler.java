@@ -11,6 +11,7 @@ import org.axon.analyticsservice.queries.GetAllAccountAnalyticsByAccountId;
 import org.axon.analyticsservice.repository.AccountAnalyticsRepository;
 import org.axonframework.eventhandling.EventHandler;
 import org.axonframework.queryhandling.QueryHandler;
+import org.axonframework.queryhandling.QueryUpdateEmitter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.util.List;
 @AllArgsConstructor
 public class AccountAnalyticsEventHandler {
     private AccountAnalyticsRepository accountAnalyticsRepository;
+    private QueryUpdateEmitter queryUpdateEmitter;
 
     @EventHandler
     public void on(AccountCreatedEvent event){
@@ -39,27 +41,41 @@ public class AccountAnalyticsEventHandler {
     }
 
     @EventHandler
-    public void on(AccountDebitedEvent event){
-        log.info("===================");
+    public void on(AccountDebitedEvent event) {
+        log.info("=====================================");
         log.info("AccountDebitedEvent received");
-        AccountAnalytics accountAnalytics= accountAnalyticsRepository.findByAccountId(event.getId().toString());
-        accountAnalytics.setBalance(accountAnalytics.getBalance()-event.getAmount());
-        accountAnalytics.setTotalDebit(accountAnalytics.getTotalDebit()+event.getAmount());
-        accountAnalytics.setTotalNumberofDebits(accountAnalytics.getTotalNumberofDebits()+1);
-        accountAnalyticsRepository.save(accountAnalytics);
-
+        AccountAnalytics accountAnalytics = accountAnalyticsRepository.findByAccountId(event.getId().toString());
+        if (accountAnalytics != null) {
+            accountAnalytics.setBalance(accountAnalytics.getBalance() - event.getAmount());
+            accountAnalytics.setTotalDebit(accountAnalytics.getTotalDebit() + event.getAmount());
+            accountAnalytics.setTotalNumberofDebits(accountAnalytics.getTotalNumberofDebits() + 1);
+            accountAnalyticsRepository.save(accountAnalytics);
+            queryUpdateEmitter.emit(GetAllAccountAnalyticsByAccountId.class,
+                    query -> query.getAccountId().equals(accountAnalytics.getAccountId()),
+                    accountAnalytics);
+            log.info("AccountAnalytics updated for account id: {}", event.getId());
+        } else {
+            log.error("AccountAnalytics not found for account id: {}", event.getId());
+        }
     }
 
     @EventHandler
-    public void on(AccountCreditedEvent event){
-        log.info("===================");
+    public void on(AccountCreditedEvent event) {
+        log.info("=====================================");
         log.info("AccountCreditedEvent received");
-        AccountAnalytics accountAnalytics= accountAnalyticsRepository.findByAccountId(event.getId().toString());
-        accountAnalytics.setBalance(accountAnalytics.getBalance()+event.getAmount());
-        accountAnalytics.setTotalCredit(accountAnalytics.getTotalDebit()+event.getAmount());
-        accountAnalytics.setTotalNumberofCredits(accountAnalytics.getTotalNumberofCredits()+1);
-        accountAnalyticsRepository.save(accountAnalytics);
-
+        AccountAnalytics accountAnalytics = accountAnalyticsRepository.findByAccountId(event.getId().toString());
+        if (accountAnalytics != null) {
+            accountAnalytics.setBalance(accountAnalytics.getBalance() + event.getAmount());
+            accountAnalytics.setTotalCredit(accountAnalytics.getTotalCredit() + event.getAmount());
+            accountAnalytics.setTotalNumberofCredits(accountAnalytics.getTotalNumberofCredits() + 1);
+            accountAnalyticsRepository.save(accountAnalytics);
+            queryUpdateEmitter.emit(GetAllAccountAnalyticsByAccountId.class,
+                    query -> query.getAccountId().equals(accountAnalytics.getAccountId()),
+                    accountAnalytics);
+            log.info("AccountAnalytics updated for account id: {}", event.getId());
+        } else {
+            log.error("AccountAnalytics not found for account id: {}", event.getId());
+        }
     }
 
     @QueryHandler

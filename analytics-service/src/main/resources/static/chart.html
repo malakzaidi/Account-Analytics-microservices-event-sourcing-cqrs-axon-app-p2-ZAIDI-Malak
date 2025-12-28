@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Bank Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #f0fdf4 100%);
+            min-height: 100vh;
+            padding: 50px 20px;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-family: 'Playfair Display', serif;
+            color: #1e40af;
+            margin-bottom: 50px;
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+            text-align: center;
+        }
+        .controls {
+            background: white;
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(30, 64, 175, 0.1);
+            margin-bottom: 50px;
+            border: 1px solid #e0e7ff;
+        }
+        .control-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+        .control-group input {
+            flex: 1;
+            min-width: 280px;
+            padding: 16px 20px;
+            border: 1px solid #c7d2fe;
+            border-radius: 14px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+        .control-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2);
+        }
+        button {
+            padding: 16px 28px;
+            background: linear-gradient(to right, #1e40af, #4338ca);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(30, 64, 175, 0.3);
+        }
+        button:hover {
+            background: linear-gradient(to right, #1e3a8a, #3730a3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(30, 64, 175, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border-radius: 9999px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .status.connected {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status.disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        .card {
+            background: white;
+            padding: 32px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(30, 64, 175, 0.1);
+            transition: all 0.3s;
+            border: 1px solid #e0e7ff;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 30px 60px rgba(30, 64, 175, 0.15);
+        }
+        .card-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e7ff;
+        }
+        .info-grid {
+            display: grid;
+            gap: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: linear-gradient(to right, #f0fdf4, #fefce8);
+            border-radius: 14px;
+            transition: all 0.3s;
+        }
+        .info-row:hover {
+            background: linear-gradient(to right, #ecfdf5, #fffbeb);
+            transform: scale(1.02);
+        }
+        .info-label {
+            font-weight: 500;
+            color: #475569;
+            font-size: 16px;
+        }
+        .info-value {
+            color: #1e40af;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .chart-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(30, 64, 175, 0.1);
+            margin-bottom: 50px;
+            border: 1px solid #e0e7ff;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 35px;
+        }
+        .chart-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1e40af;
+        }
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            background: linear-gradient(to right, #dcfce7, #bbf7d0);
+            color: #166534;
+            border-radius: 9999px;
+            font-size: 15px;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(22, 101, 52, 0.2);
+        }
+        .live-dot {
+            width: 12px;
+            height: 12px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 450px;
+        }
+        .loading {
+            text-align: center;
+            padding: 70px;
+            color: #64748b;
+            font-size: 1.3em;
+            font-weight: 500;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 20px 28px;
+            border-radius: 14px;
+            margin-bottom: 30px;
+            border-left: 5px solid #ef4444;
+            font-weight: 600;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 100px 20px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(30, 64, 175, 0.1);
+            color: #64748b;
+            font-size: 1.4em;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1> Bank Analytics Dashboard</h1>
+    <div class="controls">
+        <div class="control-group">
+            <input type="text" id="accountIdInput" placeholder="Enter Account ID">
+            <button onclick="loadAccountById()">Load Account</button>
+            <button onclick="loadAllAccounts()">Load All Accounts</button>
+            <button onclick="watchAccount()" id="watchBtn">Watch Account (Live)</button>
+            <button onclick="stopWatching()" id="stopBtn" disabled>Stop Watching</button>
+        </div>
+        <div id="statusIndicator"></div>
+    </div>
+    <div id="error"></div>
+    <div id="loading"></div>
+    <div id="chartSection" style="display: none;">
+        <div class="chart-container">
+            <div class="chart-header">
+                <div class="chart-title" id="chartTitle">Account Analytics</div>
+                <div id="liveBadge"></div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="analyticsChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div id="content"></div>
+</div>
+<script>
+    let eventSource = null;
+    let currentWatchingId = null;
+    let analyticsChart = null;
+    let chartData = { labels: [], balances: [], credits: [], debits: [], transactions: [] };
+    const MAX_DATA_POINTS = 20;
+
+    function initChart() {
+        const ctx = document.getElementById('analyticsChart').getContext('2d');
+        if (analyticsChart) { analyticsChart.destroy(); }
+        analyticsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Total Balance',
+                        data: chartData.balances,
+                        borderColor: '#fbbf24',
+                        backgroundColor: 'rgba(251, 191, 36, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 4,
+                        pointBackgroundColor: '#fbbf24',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6
+                    },
+                    {
+                        label: 'Total Credit',
+                        data: chartData.credits,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 4,
+                        pointBackgroundColor: '#22c55e',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6
+                    },
+                    {
+                        label: 'Total Debit',
+                        data: chartData.debits,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 4,
+                        pointBackgroundColor: '#ef4444',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6
+                    },
+                    {
+                        label: 'Transaction Count',
+                        data: chartData.transactions,
+                        borderColor: '#1e40af',
+                        backgroundColor: 'rgba(30, 64, 175, 0.15)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y1',
+                        borderWidth: 3,
+                        pointStyle: 'rectRot',
+                        pointRadius: 8
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Amount', font: { size: 16, weight: 'bold' } },
+                        grid: { color: 'rgba(30, 64, 175, 0.1)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Transaction Count', font: { size: 16, weight: 'bold' } },
+                        grid: { drawOnChartArea: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { font: { size: 14, weight: '600' } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) { label += ': '; }
+                                if (context.parsed.y !== null) {
+                                    if (context.dataset.label === 'Transaction Count') {
+                                        label += context.parsed.y;
+                                    } else {
+                                        label += context.parsed.y.toFixed(2);
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function addDataPoint(accountData) {
+        const timestamp = new Date().toLocaleTimeString();
+        chartData.labels.push(timestamp);
+        chartData.balances.push(accountData.balance || 0);
+        chartData.credits.push(accountData.totalCredit || 0);
+        chartData.debits.push(accountData.totalDebit || 0);
+        const totalTransactions = (accountData.totalNumberOfCredits || 0) + (accountData.totalNumberOfDebits || 0);
+        chartData.transactions.push(totalTransactions);
+
+        if (chartData.labels.length > MAX_DATA_POINTS) {
+            chartData.labels.shift();
+            chartData.balances.shift();
+            chartData.credits.shift();
+            chartData.debits.shift();
+            chartData.transactions.shift();
+        }
+        if (analyticsChart) { analyticsChart.update(); }
+    }
+
+    function resetChartData() {
+        chartData = { labels: [], balances: [], credits: [], debits: [], transactions: [] };
+    }
+
+    function showLoading(message = 'Loading...') {
+        document.getElementById('loading').innerHTML = `<div class="loading">${message}</div>`;
+    }
+    function hideLoading() {
+        document.getElementById('loading').innerHTML = '';
+    }
+    function showError(message) {
+        document.getElementById('error').innerHTML = `<div class="error"><strong>Error:</strong> ${message}</div>`;
+        setTimeout(() => { document.getElementById('error').innerHTML = ''; }, 5000);
+    }
+
+    function renderAnalytics(analytics, isArray = true) {
+        const content = document.getElementById('content');
+        if (!analytics || (isArray && analytics.length === 0)) {
+            content.innerHTML = '<div class="empty-state">No analytics data available</div>';
+            return;
+        }
+        const data = isArray ? analytics : [analytics];
+        content.innerHTML = `
+                <div class="dashboard-grid">
+                    ${data.map(account => `
+                        <div class="card">
+                            <div class="card-title">Account ${account.accountId || 'N/A'}</div>
+                            <div class="info-grid">
+                                <div class="info-row"><span class="info-label">Balance</span><span class="info-value">${account.balance?.toFixed(2) || '0.00'}</span></div>
+                                <div class="info-row"><span class="info-label">Total Credit</span><span class="info-value">${account.totalCredit?.toFixed(2) || '0.00'}</span></div>
+                                <div class="info-row"><span class="info-label">Total Debit</span><span class="info-value">${account.totalDebit?.toFixed(2) || '0.00'}</span></div>
+                                <div class="info-row"><span class="info-label">Total Credits</span><span class="info-value">${account.totalNumberOfCredits || 0}</span></div>
+                                <div class="info-row"><span class="info-label">Total Debits</span><span class="info-value">${account.totalNumberOfDebits || 0}</span></div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+    }
+
+    async function loadAllAccounts() {
+        try {
+            stopWatching();
+            showLoading('Loading all accounts...');
+            const response = await fetch('/query/accountAnalytics');
+            if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
+            const data = await response.json();
+            hideLoading();
+            document.getElementById('chartSection').style.display = 'none';
+            renderAnalytics(data, true);
+        } catch (error) {
+            hideLoading();
+            showError(`Failed to load accounts: ${error.message}`);
+        }
+    }
+
+    async function loadAccountById() {
+        const accountId = document.getElementById('accountIdInput').value.trim();
+        if (!accountId) { showError('Please enter an account ID'); return; }
+        try {
+            stopWatching();
+            showLoading(`Loading account ${accountId}...`);
+            const response = await fetch(`/query/accountAnalytics/${accountId}`);
+            if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
+            const data = await response.json();
+            hideLoading();
+            document.getElementById('chartSection').style.display = 'none';
+            renderAnalytics(data, false);
+        } catch (error) {
+            hideLoading();
+            showError(`Failed to load account: ${error.message}`);
+        }
+    }
+
+    function watchAccount() {
+        const accountId = document.getElementById('accountIdInput').value.trim();
+        if (!accountId) { showError('Please enter an account ID to watch'); return; }
+        stopWatching();
+        resetChartData();
+        currentWatchingId = accountId;
+        document.getElementById('chartSection').style.display = 'block';
+        document.getElementById('chartTitle').textContent = `Live Analytics - Account ${accountId}`;
+        document.getElementById('liveBadge').innerHTML = '<div class="live-badge"><div class="live-dot"></div>LIVE</div>';
+        document.getElementById('content').innerHTML = '';
+        initChart();
+        eventSource = new EventSource(`/query/accountAnalytics/${accountId}/watch`);
+        document.getElementById('watchBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+        updateStatus('connected');
+
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                addDataPoint(data);
+                renderAnalytics(data, false);
+            } catch (error) {
+                console.error('Error parsing SSE data:', error);
+            }
+        };
+        eventSource.onerror = function(error) {
+            console.error('SSE error:', error);
+            showError('Connection lost. Attempting to reconnect...');
+            updateStatus('disconnected');
+        };
+        eventSource.onopen = function() {
+            console.log('SSE connection opened');
+            updateStatus('connected');
+        };
+    }
+
+    function stopWatching() {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+            currentWatchingId = null;
+            document.getElementById('watchBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('liveBadge').innerHTML = '';
+            updateStatus('disconnected');
+        }
+    }
+
+    function updateStatus(status) {
+        const statusIndicator = document.getElementById('statusIndicator');
+        if (status === 'connected') {
+            statusIndicator.innerHTML = '<span class="status connected">Connected (Live Updates)</span>';
+        } else if (status === 'disconnected') {
+            statusIndicator.innerHTML = '<span class="status disconnected">Disconnected</span>';
+        } else {
+            statusIndicator.innerHTML = '';
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        loadAllAccounts();
+    });
+    window.addEventListener('beforeunload', () => {
+        stopWatching();
+    });
+</script>
+</body>
+</html>

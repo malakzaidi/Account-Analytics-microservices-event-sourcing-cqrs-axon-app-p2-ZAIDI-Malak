@@ -12,6 +12,23 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    networks:
+      - accounts-analytics
+
+  axonserver:
+    image: 'axoniq/axonserver:latest'
+    container_name: axonserver
+    environment:
+      - 'AXONIQ_AXONSERVER_STANDALONE=true'
+    ports:
+      - '8024:8024'
+      - '8124:8124'
+    networks:
+      - accounts-analytics
 
 volumes:
   mysql_data:
+
+networks:
+  accounts-analytics:
+    driver: bridge
